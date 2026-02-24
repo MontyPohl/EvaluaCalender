@@ -2,9 +2,19 @@
 app/routes/supervisor.py
 Rutas del panel de supervisor.
 """
+
 import json
 from datetime import date
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    jsonify,
+    abort,
+)
 from flask_login import login_required, current_user
 from ..models import Evaluacion, Disponibilidad
 from ..services import (
@@ -29,15 +39,22 @@ def _require_supervisor():
 @login_required
 def dashboard():
     _require_supervisor()
-    pendientes = Evaluacion.query.filter_by(
-        supervisor_id=current_user.id, estado="PENDIENTE"
-    ).order_by(Evaluacion.fecha, Evaluacion.hora).all()
+    pendientes = (
+        Evaluacion.query.filter_by(supervisor_id=current_user.id, estado="PENDIENTE")
+        .order_by(Evaluacion.fecha, Evaluacion.hora)
+        .all()
+    )
 
-    proximas = Evaluacion.query.filter(
-        Evaluacion.supervisor_id == current_user.id,
-        Evaluacion.estado == "CONFIRMADO",
-        Evaluacion.fecha >= date.today(),
-    ).order_by(Evaluacion.fecha, Evaluacion.hora).limit(20).all()
+    proximas = (
+        Evaluacion.query.filter(
+            Evaluacion.supervisor_id == current_user.id,
+            Evaluacion.estado == "CONFIRMADO",
+            Evaluacion.fecha >= date.today(),
+        )
+        .order_by(Evaluacion.fecha, Evaluacion.hora)
+        .limit(20)
+        .all()
+    )
 
     return render_template(
         "supervisor/dashboard.html",
@@ -48,9 +65,13 @@ def dashboard():
 
 @supervisor_bp.route("/evaluacion/<int:eval_id>/confirmar", methods=["POST"])
 @login_required
+@supervisor_bp.route("/evaluacion/<int:eval_id>/confirmar", methods=["POST"])
+@login_required
 def confirmar_evaluacion(eval_id):
     _require_supervisor()
-    ev = Evaluacion.query.filter_by(id=eval_id, supervisor_id=current_user.id).first_or_404()
+    ev = Evaluacion.query.filter_by(
+        id=eval_id, supervisor_id=current_user.id
+    ).first_or_404()
 
     if ev.estado != "PENDIENTE":
         flash("Esta evaluación ya fue procesada.", "warning")
@@ -59,10 +80,25 @@ def confirmar_evaluacion(eval_id):
     ev.confirmar()
     db.session.commit()
 
-    try:
-        enviar_confirmacion(ev)
-    except Exception:
-        pass
+    # Enviar correo en segundo plano
+    from flask import current_app
+    import threading
+
+    _app = current_app._get_current_object()
+    _eval_id = ev.id
+
+    def enviar():
+        with _app.app_context():
+            from ..models import Evaluacion as Ev
+
+            e = Ev.query.get(_eval_id)
+            if e:
+                try:
+                    enviar_confirmacion(e)
+                except Exception as ex:
+                    _app.logger.error(f"Error enviando correo confirmacion: {ex}")
+
+    threading.Thread(target=enviar, daemon=True).start()
 
     flash(f"Evaluación de {ev.nombre_solicitante} confirmada exitosamente.", "success")
     return redirect(url_for("supervisor.dashboard"))
@@ -72,7 +108,9 @@ def confirmar_evaluacion(eval_id):
 @login_required
 def rechazar_evaluacion(eval_id):
     _require_supervisor()
-    ev = Evaluacion.query.filter_by(id=eval_id, supervisor_id=current_user.id).first_or_404()
+    ev = Evaluacion.query.filter_by(
+        id=eval_id, supervisor_id=current_user.id
+    ).first_or_404()
 
     if ev.estado != "PENDIENTE":
         flash("Esta evaluación ya fue procesada.", "warning")
@@ -82,12 +120,30 @@ def rechazar_evaluacion(eval_id):
     liberar_slot(current_user.id, ev.fecha, ev.hora)
     db.session.commit()
 
-    try:
-        enviar_rechazo(ev)
-    except Exception:
-        pass
+    # Enviar correo en segundo plano
+    from flask import current_app
+    import threading
 
-    flash(f"Evaluación de {ev.nombre_solicitante} rechazada. El horario fue liberado.", "info")
+    _app = current_app._get_current_object()
+    _eval_id = ev.id
+
+    def enviar():
+        with _app.app_context():
+            from ..models import Evaluacion as Ev
+
+            e = Ev.query.get(_eval_id)
+            if e:
+                try:
+                    enviar_rechazo(e)
+                except Exception as ex:
+                    _app.logger.error(f"Error enviando correo rechazo: {ex}")
+
+    threading.Thread(target=enviar, daemon=True).start()
+
+    flash(
+        f"Evaluación de {ev.nombre_solicitante} rechazada. El horario fue liberado.",
+        "info",
+    )
     return redirect(url_for("supervisor.dashboard"))
 
 
@@ -102,9 +158,11 @@ def disponibilidad():
         year, month = date.today().year, date.today().month
 
     if month < 1:
-        month = 12; year -= 1
+        month = 12
+        year -= 1
     elif month > 12:
-        month = 1; year += 1
+        month = 1
+        year += 1
 
     slots = get_todos_slots_mes(current_user.id, year, month)
     return render_template(
@@ -127,10 +185,12 @@ def guardar_disponibilidad():
     slots_validos = []
     for s in data["slots"]:
         try:
-            slots_validos.append({
-                "fecha": date.fromisoformat(s["fecha"]),
-                "hora": s["hora"],
-            })
+            slots_validos.append(
+                {
+                    "fecha": date.fromisoformat(s["fecha"]),
+                    "hora": s["hora"],
+                }
+            )
         except (KeyError, ValueError):
             continue
 
@@ -149,7 +209,9 @@ def eliminar_disponibilidad(slot_id):
     if ok:
         flash("Slot eliminado.", "success")
     else:
-        flash("No se puede eliminar: tiene una evaluación activa o no existe.", "danger")
+        flash(
+            "No se puede eliminar: tiene una evaluación activa o no existe.", "danger"
+        )
     return redirect(url_for("supervisor.disponibilidad"))
 
 
@@ -157,7 +219,10 @@ def eliminar_disponibilidad(slot_id):
 @login_required
 def historial():
     _require_supervisor()
-    evaluaciones = Evaluacion.query.filter_by(
-        supervisor_id=current_user.id
-    ).order_by(Evaluacion.created_at.desc()).limit(100).all()
+    evaluaciones = (
+        Evaluacion.query.filter_by(supervisor_id=current_user.id)
+        .order_by(Evaluacion.created_at.desc())
+        .limit(100)
+        .all()
+    )
     return render_template("supervisor/historial.html", evaluaciones=evaluaciones)
