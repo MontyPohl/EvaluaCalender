@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Supervisores{% endblock %}
+{% block content %}
+<div class="main-container">
+  <div class="page-header">
+    <h1 class="page-title">Supervisores</h1>
+    <p class="page-subtitle">{{ supervisores|length }} supervisores registrados</p>
+  </div>
+
+  <div class="card">
+    {% if supervisores %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Supervisor</th><th>Email</th><th>Registrado</th><th>Estado</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            {% for s in supervisores %}
+            <tr>
+              <td>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--blue)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.9rem; color:#fff; flex-shrink:0;">
+                    {{ s.nombre[0].upper() }}
+                  </div>
+                  <strong>{{ s.nombre }}</strong>
+                </div>
+              </td>
+              <td class="text-muted">{{ s.email }}</td>
+              <td class="text-muted" style="font-size:.8rem;">{{ s.created_at.strftime('%d/%m/%Y') }}</td>
+              <td>
+                {% if s.activo %}<span class="badge badge-confirmado">Activo</span>
+                {% else %}<span class="badge badge-cancelado">Desactivado</span>{% endif %}
+              </td>
+              <td>
+                {% if s.activo %}
+                  <form method="POST" action="{{ url_for('admin.eliminar_supervisor', user_id=s.id) }}" style="margin:0;"
+                        onsubmit="return confirm('¿Desactivar a {{ s.nombre }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                      <i class="fa fa-user-slash"></i> Desactivar
+                    </button>
+                  </form>
+                {% else %}
+                  <form method="POST" action="{{ url_for('admin.restaurar_supervisor', user_id=s.id) }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-success btn-sm">
+                      <i class="fa fa-user-check"></i> Restaurar
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <p>No hay supervisores registrados aún.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

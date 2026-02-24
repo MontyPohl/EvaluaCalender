@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Panel Admin{% endblock %}
+{% block content %}
+<div class="main-container">
+  <div class="page-header">
+    <h1 class="page-title">Panel de Administración</h1>
+    <p class="page-subtitle">Vista global de EvaluaCalender</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid mb-3">
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-number">{{ stats.supervisores }}</div>
+      <div class="stat-label">Supervisores activos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🎯</div>
+      <div class="stat-number">{{ stats.challenges }}</div>
+      <div class="stat-label">Challenges activos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📋</div>
+      <div class="stat-number">{{ stats.evaluaciones }}</div>
+      <div class="stat-label">Total evaluaciones</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:var(--warning)">⏳</div>
+      <div class="stat-number" style="color:var(--warning)">{{ stats.pendientes }}</div>
+      <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:var(--success)">✅</div>
+      <div class="stat-number" style="color:var(--success)">{{ stats.confirmadas }}</div>
+      <div class="stat-label">Confirmadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:var(--danger)">❌</div>
+      <div class="stat-number" style="color:var(--danger)">{{ stats.rechazadas }}</div>
+      <div class="stat-label">Rechazadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:var(--text2)">⏰</div>
+      <div class="stat-number" style="color:var(--text2)">{{ stats.canceladas }}</div>
+      <div class="stat-label">Canceladas auto</div>
+    </div>
+  </div>
+
+  <!-- Accesos rápidos -->
+  <div class="grid-3 mb-3">
+    <a href="{{ url_for('admin.challenges') }}" class="card" style="text-decoration:none; cursor:pointer; transition:transform .2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''">
+      <div style="font-size:2rem; margin-bottom:.75rem;">🎯</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:700; margin-bottom:.25rem;">Challenges</div>
+      <div class="text-muted" style="font-size:.85rem;">Crear, editar y gestionar challenges</div>
+    </a>
+    <a href="{{ url_for('admin.supervisores') }}" class="card" style="text-decoration:none; cursor:pointer; transition:transform .2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''">
+      <div style="font-size:2rem; margin-bottom:.75rem;">👥</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:700; margin-bottom:.25rem;">Supervisores</div>
+      <div class="text-muted" style="font-size:.85rem;">Ver y gestionar supervisores</div>
+    </a>
+    <a href="{{ url_for('admin.evaluaciones') }}" class="card" style="text-decoration:none; cursor:pointer; transition:transform .2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''">
+      <div style="font-size:2rem; margin-bottom:.75rem;">📋</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:700; margin-bottom:.25rem;">Evaluaciones</div>
+      <div class="text-muted" style="font-size:.85rem;">Vista global de todas las evaluaciones</div>
+    </a>
+  </div>
+
+  <!-- Evaluaciones recientes -->
+  <div class="card">
+    <div class="card-header"><i class="fa fa-clock icon"></i> Actividad reciente</div>
+    {% if recientes %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Solicitante</th><th>Supervisor</th><th>Challenge</th><th>Fecha</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {% for ev in recientes %}
+            <tr>
+              <td>{{ ev.nombre_solicitante }}</td>
+              <td>{{ ev.supervisor.nombre }}</td>
+              <td>{{ ev.challenge.nombre }}</td>
+              <td>{{ ev.fecha.strftime('%d/%m/%Y') }} {{ ev.hora }}</td>
+              <td>
+                {% if ev.estado == 'PENDIENTE' %}<span class="badge badge-pendiente">Pendiente</span>
+                {% elif ev.estado == 'CONFIRMADO' %}<span class="badge badge-confirmado">Confirmado</span>
+                {% elif ev.estado == 'RECHAZADO' %}<span class="badge badge-rechazado">Rechazado</span>
+                {% else %}<span class="badge badge-cancelado">Cancelado</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state"><div class="empty-icon">📋</div><p>No hay evaluaciones aún.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

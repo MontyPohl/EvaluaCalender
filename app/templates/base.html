@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}EvaluaCalender{% endblock %} · EvaluaCalender</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #0a0a14;
+      --bg2: #111122;
+      --card: #14142a;
+      --card2: #1a1a35;
+      --border: rgba(255,255,255,.07);
+      --accent: #e94560;
+      --accent2: #f7c59f;
+      --blue: #4f8ef7;
+      --text: #e8e8f0;
+      --text2: #8888aa;
+      --text3: #5555778;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #06b6d4;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(233,69,96,.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 120%, rgba(79,142,247,.1) 0%, transparent 60%);
+    }
+
+    /* ── Navbar ───────────────────────────────────── */
+    .navbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,20,.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .navbar-brand {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: 1.2rem; color: var(--text);
+      text-decoration: none; letter-spacing: 1px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .navbar-brand .dot { color: var(--accent); }
+    .navbar-nav { display: flex; align-items: center; gap: 4px; }
+    .nav-link {
+      color: var(--text2); text-decoration: none;
+      padding: 6px 14px; border-radius: 8px; font-size: .9rem;
+      transition: all .2s;
+    }
+    .nav-link:hover { color: var(--text); background: var(--card2); }
+    .nav-link.active { color: var(--accent); }
+    .btn-nav {
+      background: var(--accent); color: #fff; padding: 7px 18px;
+      border-radius: 8px; font-size: .875rem; font-weight: 600;
+      text-decoration: none; transition: opacity .2s;
+    }
+    .btn-nav:hover { opacity: .85; }
+    .user-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card2); border-radius: 8px; padding: 6px 14px;
+      font-size: .875rem;
+    }
+    .role-pill {
+      font-size: .65rem; font-weight: 700; letter-spacing: 1px;
+      padding: 2px 8px; border-radius: 20px; text-transform: uppercase;
+    }
+    .role-admin { background: rgba(233,69,96,.2); color: var(--accent); }
+    .role-supervisor { background: rgba(79,142,247,.2); color: var(--blue); }
+
+    /* ── Layout ───────────────────────────────────── */
+    .main-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { margin-bottom: 2rem; }
+    .page-title {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 2rem; color: var(--text); margin-bottom: .5rem;
+    }
+    .page-subtitle { color: var(--text2); font-size: .95rem; }
+
+    /* ── Cards ────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.5rem; transition: border-color .2s;
+    }
+    .card:hover { border-color: rgba(255,255,255,.12); }
+    .card-header {
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 1rem; margin-bottom: 1.25rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-header .icon { color: var(--accent); }
+
+    /* ── Buttons ──────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: 10px; font-size: .9rem;
+      font-weight: 600; cursor: pointer; border: none;
+      text-decoration: none; transition: all .2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #c73350; }
+    .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #222240; }
+    .btn-success { background: rgba(34,197,94,.15); color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+    .btn-success:hover { background: rgba(34,197,94,.25); }
+    .btn-danger { background: rgba(239,68,68,.15); color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+    .btn-danger:hover { background: rgba(239,68,68,.25); }
+    .btn-warning { background: rgba(245,158,11,.15); color: var(--warning); border: 1px solid rgba(245,158,11,.3); }
+    .btn-warning:hover { background: rgba(245,158,11,.25); }
+    .btn-sm { padding: 6px 14px; font-size: .8rem; }
+    .btn-lg { padding: 14px 28px; font-size: 1rem; }
+
+    /* ── Badges ───────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: .75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .badge-pendiente { background: rgba(245,158,11,.15); color: var(--warning); }
+    .badge-confirmado { background: rgba(34,197,94,.15); color: var(--success); }
+    .badge-rechazado { background: rgba(239,68,68,.15); color: var(--danger); }
+    .badge-cancelado { background: rgba(136,136,170,.15); color: var(--text2); }
+
+    /* ── Forms ────────────────────────────────────── */
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; margin-bottom: .4rem; font-size: .875rem; color: var(--text2); font-weight: 500; }
+    .form-control {
+      width: 100%; background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px; color: var(--text);
+      font-size: .9rem; font-family: inherit; transition: border-color .2s;
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--accent); }
+    .form-control::placeholder { color: var(--text2); }
+    textarea.form-control { min-height: 100px; resize: vertical; }
+    select.form-control option { background: var(--bg2); }
+
+    /* ── Tables ───────────────────────────────────── */
+    .table-wrapper { overflow-x: auto; border-radius: 12px; }
+    .table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .table th {
+      background: var(--bg2); color: var(--text2); font-weight: 600;
+      padding: 12px 16px; text-align: left; font-size: .8rem;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Alerts ───────────────────────────────────── */
+    .alert {
+      padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem;
+      display: flex; align-items: flex-start; gap: 10px; font-size: .9rem;
+    }
+    .alert-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); color: #86efac; }
+    .alert-danger { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); color: #fca5a5; }
+    .alert-warning { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); color: #fde68a; }
+    .alert-info { background: rgba(6,182,212,.1); border: 1px solid rgba(6,182,212,.25); color: #67e8f9; }
+
+    /* ── Stat cards ───────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.25rem; transition: transform .2s, border-color .2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.12); }
+    .stat-number {
+      font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800;
+      color: var(--text); line-height: 1;
+    }
+    .stat-label { font-size: .8rem; color: var(--text2); margin-top: 4px; }
+    .stat-icon { font-size: 1.5rem; margin-bottom: 8px; }
+
+    /* ── Grid helpers ─────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .navbar { padding: 0 1rem; }
+      .main-container { padding: 1rem; }
+    }
+
+    /* ── Footer ───────────────────────────────────── */
+    footer {
+      text-align: center; padding: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text2); font-size: .8rem; margin-top: 4rem;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── Misc ─────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+    .text-accent { color: var(--accent); }
+    .text-muted { color: var(--text2); }
+    .mt-1 { margin-top: .5rem; } .mt-2 { margin-top: 1rem; } .mt-3 { margin-top: 1.5rem; }
+    .mb-1 { margin-bottom: .5rem; } .mb-2 { margin-bottom: 1rem; } .mb-3 { margin-bottom: 1.5rem; }
+    .gap-2 { gap: 1rem; }
+    .flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+    .flex-wrap { flex-wrap: wrap; }
+    .w-full { width: 100%; }
+    .empty-state { text-align: center; padding: 3rem; color: var(--text2); }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: .4; }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Navbar ─────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <a href="{{ url_for('public.home') }}" class="navbar-brand">
+    <i class="fa-solid fa-calendar-check" style="color:var(--accent)"></i>
+    Evalua<span class="dot">Calender</span>
+  </a>
+  <div class="navbar-nav">
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('public.home') }}" class="nav-link"><i class="fa fa-globe"></i> Inicio</a>
+      {% if current_user.is_admin() %}
+        <a href="{{ url_for('admin.dashboard') }}" class="nav-link"><i class="fa fa-gauge"></i> Admin</a>
+        <a href="{{ url_for('admin.challenges') }}" class="nav-link">Challenges</a>
+        <a href="{{ url_for('admin.supervisores') }}" class="nav-link">Supervisores</a>
+        <a href="{{ url_for('admin.evaluaciones') }}" class="nav-link">Evaluaciones</a>
+      {% else %}
+        <a href="{{ url_for('supervisor.dashboard') }}" class="nav-link"><i class="fa fa-gauge"></i> Dashboard</a>
+        <a href="{{ url_for('supervisor.disponibilidad') }}" class="nav-link">Mi Disponibilidad</a>
+        <a href="{{ url_for('supervisor.historial') }}" class="nav-link">Historial</a>
+      {% endif %}
+      <div class="user-badge">
+        <i class="fa fa-user-circle" style="color:var(--text2)"></i>
+        <span>{{ current_user.nombre.split()[0] }}</span>
+        <span class="role-pill role-{{ current_user.rol.lower() }}">{{ current_user.rol }}</span>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="btn-nav">Salir</a>
+    {% else %}
+      <a href="{{ url_for('public.home') }}" class="nav-link">Inicio</a>
+      <a href="{{ url_for('auth.login') }}" class="nav-link">Login</a>
+      <a href="{{ url_for('auth.register') }}" class="btn-nav">Registrarse</a>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- ── Flash messages ─────────────────────────────────────────── -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div style="max-width:1200px; margin:1rem auto; padding:0 2rem;">
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">
+          <i class="fa fa-circle-info"></i> {{ msg }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ── Main content ───────────────────────────────────────────── -->
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer>
+  <p>© 2025 <span>EvaluaCalender</span> · Plataforma profesional de evaluaciones por challenges</p>
+</footer>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

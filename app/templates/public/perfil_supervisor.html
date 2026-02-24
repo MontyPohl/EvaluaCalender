@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}{{ supervisor.nombre }} - Agendar{% endblock %}
+
+{% block extra_css %}
+<style>
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-day-header {
+    text-align: center; font-size: .7rem; font-weight: 700;
+    color: var(--text2); padding: 8px 4px; text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; cursor: default;
+    padding: 4px; font-size: .85rem; position: relative; overflow: hidden;
+    transition: all .15s;
+  }
+  .cal-day.empty { background: transparent; border: none; }
+  .cal-day.past { opacity: .35; }
+  .cal-day.has-slots {
+    background: rgba(233,69,96,.08); border-color: rgba(233,69,96,.25);
+    cursor: pointer;
+  }
+  .cal-day.has-slots:hover {
+    background: rgba(233,69,96,.18); border-color: var(--accent);
+    transform: scale(1.04);
+  }
+  .cal-day.selected {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  .cal-day .day-num { font-weight: 700; line-height: 1; }
+  .cal-day .slot-count {
+    font-size: .65rem; color: var(--accent); font-weight: 600;
+    margin-top: 2px;
+  }
+  .cal-day.selected .slot-count { color: rgba(255,255,255,.7); }
+
+  .slot-btn {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px; cursor: pointer;
+    font-family: inherit; font-size: .9rem; color: var(--text);
+    transition: all .15s; width: 100%;
+  }
+  .slot-btn:hover { background: rgba(233,69,96,.1); border-color: var(--accent); }
+  .slot-btn.selected-slot { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .booking-panel {
+    position: sticky; top: 80px;
+  }
+  @media (max-width: 900px) {
+    .booking-panel { position: static; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+
+  <!-- Header supervisor -->
+  <div style="display:flex; align-items:center; gap:1rem; margin-bottom:2rem; flex-wrap:wrap;">
+    <a href="{{ url_for('public.home') }}" class="btn btn-secondary btn-sm">
+      <i class="fa fa-arrow-left"></i> Volver
+    </a>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--blue)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; color:#fff;">
+        {{ supervisor.nombre[0].upper() }}
+      </div>
+      <div>
+        <h1 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.4rem;">{{ supervisor.nombre }}</h1>
+        <p class="text-muted" style="font-size:.85rem;">{{ supervisor.email }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 380px; gap:2rem; align-items:start;">
+
+    <!-- ── Calendario ── -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fa fa-calendar icon"></i> Disponibilidad
+      </div>
+
+      <!-- Navegación de mes -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+        <a href="{{ url_for('public.perfil_supervisor', supervisor_id=supervisor.id, year=year if month > 1 else year-1, month=month-1 if month > 1 else 12) }}"
+           class="btn btn-secondary btn-sm"><i class="fa fa-chevron-left"></i></a>
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; text-transform:capitalize;">
+          {{ ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][month-1] }}
+          {{ year }}
+        </div>
+        <a href="{{ url_for('public.perfil_supervisor', supervisor_id=supervisor.id, year=year if month < 12 else year+1, month=month+1 if month < 12 else 1) }}"
+           class="btn btn-secondary btn-sm"><i class="fa fa-chevron-right"></i></a>
+      </div>
+
+      <!-- Grid del calendario -->
+      <div class="cal-grid" id="calGrid">
+        <div class="cal-day-header">Lu</div>
+        <div class="cal-day-header">Ma</div>
+        <div class="cal-day-header">Mi</div>
+        <div class="cal-day-header">Ju</div>
+        <div class="cal-day-header">Vi</div>
+        <div class="cal-day-header">Sa</div>
+        <div class="cal-day-header">Do</div>
+      </div>
+
+      <div style="display:flex; gap:16px; margin-top:1rem; font-size:.8rem; flex-wrap:wrap;">
+        <span><span style="display:inline-block; width:12px; height:12px; background:rgba(233,69,96,.2); border:1px solid rgba(233,69,96,.4); border-radius:3px; margin-right:4px;"></span>Con horarios disponibles</span>
+        <span><span style="display:inline-block; width:12px; height:12px; background:var(--card); border:1px solid var(--border); border-radius:3px; margin-right:4px; opacity:.4;"></span>Sin disponibilidad</span>
+      </div>
+    </div>
+
+    <!-- ── Panel de reserva ── -->
+    <div class="booking-panel">
+      <div class="card" id="bookingCard">
+        <div class="card-header"><i class="fa fa-pen-to-square icon"></i> Agendar evaluación</div>
+
+        <!-- Paso 1: Selecciona fecha -->
+        <div id="step-date">
+          <div class="empty-state" style="padding:2rem 0;">
+            <div class="empty-icon" style="font-size:2rem;">📅</div>
+            <p style="color:var(--text2);">Selecciona un día en el calendario</p>
+          </div>
+        </div>
+
+        <!-- Paso 2: Selecciona hora (oculto hasta elegir fecha) -->
+        <div id="step-time" style="display:none;">
+          <p style="font-size:.85rem; color:var(--text2); margin-bottom:1rem;">
+            <i class="fa fa-calendar-day" style="color:var(--accent)"></i>
+            Fecha seleccionada: <strong id="fechaLabel"></strong>
+          </p>
+          <p style="font-size:.85rem; font-weight:600; margin-bottom:.75rem;">Horarios disponibles:</p>
+          <div id="slotsContainer" style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1rem;"></div>
+          <button onclick="goToForm()" id="continueBtn" class="btn btn-primary w-full" disabled style="justify-content:center;">
+            Continuar <i class="fa fa-arrow-right"></i>
+          </button>
+          <button onclick="resetSelection()" class="btn btn-secondary w-full mt-1" style="justify-content:center;">
+            <i class="fa fa-arrow-left"></i> Cambiar fecha
+          </button>
+        </div>
+
+        <!-- Paso 3: Formulario -->
+        <div id="step-form" style="display:none;">
+          <form method="POST" action="{{ url_for('public.agendar') }}" id="agendarForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="supervisor_id" value="{{ supervisor.id }}">
+            <input type="hidden" name="fecha" id="fechaInput">
+            <input type="hidden" name="hora" id="horaInput">
+
+            <div style="background:var(--bg2); border-radius:10px; padding:12px; margin-bottom:1rem; font-size:.85rem;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span class="text-muted">Supervisor:</span> <strong>{{ supervisor.nombre }}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span class="text-muted">Fecha:</span> <strong id="resumenFecha"></strong>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span class="text-muted">Hora:</span> <strong id="resumenHora"></strong>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Challenge *</label>
+              <select name="challenge_id" class="form-control" required>
+                <option value="">Elige un challenge…</option>
+                {% for ch in challenges %}
+                  <option value="{{ ch.id }}">{{ ch.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tu nombre *</label>
+              <input type="text" name="nombre" class="form-control" placeholder="Nombre completo" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tu email *</label>
+              <input type="email" name="email" class="form-control" placeholder="tu@email.com" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" name="telefono" class="form-control" placeholder="+54 9 11 0000 0000">
+            </div>
+            <button type="submit" class="btn btn-primary w-full btn-lg" style="justify-content:center;">
+              <i class="fa fa-calendar-check"></i> Confirmar solicitud
+            </button>
+            <button type="button" onclick="goToSlots()" class="btn btn-secondary w-full mt-1" style="justify-content:center;">
+              <i class="fa fa-arrow-left"></i> Cambiar horario
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const DISPONIBILIDAD = {{ disponibilidad | tojson }};
+const YEAR = {{ year }};
+const MONTH = {{ month }};
+
+let selectedDate = null;
+let selectedHora = null;
+
+// ── Build calendar ────────────────────────────────────────────
+function buildCalendar() {
+  const grid = document.getElementById('calGrid');
+  // Remove day cells if any (keep headers)
+  const headers = grid.querySelectorAll('.cal-day-header');
+
+  // Re-build from scratch after headers
+  const existing = grid.querySelectorAll('.cal-day');
+  existing.forEach(d => d.remove());
+
+  const firstDay = new Date(YEAR, MONTH - 1, 1);
+  const lastDate = new Date(YEAR, MONTH, 0).getDate();
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Monday-based: 0=Mon,...,6=Sun
+  let startDow = (firstDay.getDay() + 6) % 7; // convert Sun=0 to Mon=0
+  for (let i = 0; i < startDow; i++) {
+    const blank = document.createElement('div');
+    blank.className = 'cal-day empty';
+    grid.appendChild(blank);
+  }
+
+  for (let d = 1; d <= lastDate; d++) {
+    const dayEl = document.createElement('div');
+    const dateStr = `${YEAR}-${String(MONTH).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const thisDate = new Date(YEAR, MONTH-1, d);
+    const slots = DISPONIBILIDAD[dateStr] || [];
+
+    dayEl.className = 'cal-day';
+    if (thisDate < today) {
+      dayEl.classList.add('past');
+    } else if (slots.length > 0) {
+      dayEl.classList.add('has-slots');
+      dayEl.onclick = () => selectDate(dateStr, slots);
+    }
+
+    dayEl.innerHTML = `<span class="day-num">${d}</span>${slots.length > 0 && thisDate >= today ? `<span class="slot-count">${slots.length} slot${slots.length > 1 ? 's' : ''}</span>` : ''}`;
+    grid.appendChild(dayEl);
+  }
+}
+
+function selectDate(dateStr, slots) {
+  selectedDate = dateStr;
+  selectedHora = null;
+
+  // Visual feedback on calendar
+  document.querySelectorAll('.cal-day.selected').forEach(d => d.classList.remove('selected'));
+  document.querySelectorAll('.cal-day.has-slots').forEach(d => {
+    const dayNum = parseInt(d.querySelector('.day-num').textContent);
+    const ds = `${YEAR}-${String(MONTH).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    if (ds === dateStr) d.classList.add('selected');
+  });
+
+  // Format date for display
+  const [y, m, day] = dateStr.split('-');
+  const months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const formatted = `${parseInt(day)} de ${months[parseInt(m)-1]} de ${y}`;
+  document.getElementById('fechaLabel').textContent = formatted;
+
+  // Render slots
+  const container = document.getElementById('slotsContainer');
+  container.innerHTML = '';
+  slots.forEach(hora => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'slot-btn';
+    btn.textContent = hora;
+    btn.onclick = () => selectSlot(hora, btn);
+    container.appendChild(btn);
+  });
+
+  document.getElementById('step-date').style.display = 'none';
+  document.getElementById('step-time').style.display = 'block';
+  document.getElementById('step-form').style.display = 'none';
+  document.getElementById('continueBtn').disabled = true;
+}
+
+function selectSlot(hora, btn) {
+  selectedHora = hora;
+  document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected-slot'));
+  btn.classList.add('selected-slot');
+  document.getElementById('continueBtn').disabled = false;
+}
+
+function goToForm() {
+  if (!selectedDate || !selectedHora) return;
+  document.getElementById('fechaInput').value = selectedDate;
+  document.getElementById('horaInput').value = selectedHora;
+
+  const [y, m, day] = selectedDate.split('-');
+  const months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  document.getElementById('resumenFecha').textContent = `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  document.getElementById('resumenHora').textContent = selectedHora;
+
+  document.getElementById('step-time').style.display = 'none';
+  document.getElementById('step-form').style.display = 'block';
+}
+
+function goToSlots() {
+  document.getElementById('step-time').style.display = 'block';
+  document.getElementById('step-form').style.display = 'none';
+}
+
+function resetSelection() {
+  selectedDate = null;
+  selectedHora = null;
+  document.querySelectorAll('.cal-day.selected').forEach(d => d.classList.remove('selected'));
+  document.getElementById('step-date').style.display = 'block';
+  document.getElementById('step-time').style.display = 'none';
+  document.getElementById('step-form').style.display = 'none';
+}
+
+buildCalendar();
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Challenges{% endblock %}
+{% block content %}
+<div class="main-container">
+  <div class="page-header flex justify-between items-center flex-wrap gap-2">
+    <div>
+      <h1 class="page-title">Challenges</h1>
+      <p class="page-subtitle">{{ challenges|length }} challenges registrados</p>
+    </div>
+    <a href="{{ url_for('admin.nuevo_challenge') }}" class="btn btn-primary">
+      <i class="fa fa-plus"></i> Nuevo challenge
+    </a>
+  </div>
+
+  <div class="card">
+    {% if challenges %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Nombre</th><th>Descripción</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            {% for c in challenges %}
+            <tr>
+              <td><strong>{{ c.nombre }}</strong></td>
+              <td class="text-muted" style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                {{ c.descripcion or '—' }}
+              </td>
+              <td>
+                {% if c.activo %}<span class="badge badge-confirmado">Activo</span>
+                {% else %}<span class="badge badge-cancelado">Inactivo</span>{% endif %}
+              </td>
+              <td class="text-muted" style="font-size:.8rem;">{{ c.created_at.strftime('%d/%m/%Y') }}</td>
+              <td>
+                <div style="display:flex; gap:.5rem;">
+                  <a href="{{ url_for('admin.editar_challenge', challenge_id=c.id) }}" class="btn btn-secondary btn-sm">
+                    <i class="fa fa-pen"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('admin.toggle_challenge', challenge_id=c.id) }}" style="margin:0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm {{ 'btn-warning' if c.activo else 'btn-success' }}">
+                      {% if c.activo %}<i class="fa fa-pause"></i>{% else %}<i class="fa fa-play"></i>{% endif %}
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <p>No hay challenges aún.</p>
+        <a href="{{ url_for('admin.nuevo_challenge') }}" class="btn btn-primary mt-2">Crear primer challenge</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Evaluaciones{% endblock %}
+{% block content %}
+<div class="main-container">
+  <div class="page-header flex justify-between items-center flex-wrap gap-2">
+    <div>
+      <h1 class="page-title">Evaluaciones</h1>
+      <p class="page-subtitle">Vista global · {{ evaluaciones|length }} registros</p>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-2" style="padding:1rem 1.5rem;">
+    <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+      <span class="text-muted" style="font-size:.875rem;">Filtrar:</span>
+      <a href="{{ url_for('admin.evaluaciones') }}" class="btn btn-sm {{ 'btn-primary' if not filtro_estado else 'btn-secondary' }}">Todos</a>
+      <a href="{{ url_for('admin.evaluaciones', estado='PENDIENTE') }}" class="btn btn-sm {{ 'btn-primary' if filtro_estado=='PENDIENTE' else 'btn-secondary' }}">Pendientes</a>
+      <a href="{{ url_for('admin.evaluaciones', estado='CONFIRMADO') }}" class="btn btn-sm {{ 'btn-primary' if filtro_estado=='CONFIRMADO' else 'btn-secondary' }}">Confirmados</a>
+      <a href="{{ url_for('admin.evaluaciones', estado='RECHAZADO') }}" class="btn btn-sm {{ 'btn-primary' if filtro_estado=='RECHAZADO' else 'btn-secondary' }}">Rechazados</a>
+      <a href="{{ url_for('admin.evaluaciones', estado='CANCELADO_AUTO') }}" class="btn btn-sm {{ 'btn-primary' if filtro_estado=='CANCELADO_AUTO' else 'btn-secondary' }}">Cancelados</a>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if evaluaciones %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Solicitante</th><th>Supervisor</th><th>Challenge</th><th>Fecha / Hora</th><th>Estado</th><th>Creada</th></tr>
+          </thead>
+          <tbody>
+            {% for ev in evaluaciones %}
+            <tr>
+              <td>
+                <div style="font-weight:600;">{{ ev.nombre_solicitante }}</div>
+                <div class="text-muted" style="font-size:.8rem;">{{ ev.email_solicitante }}</div>
+                {% if ev.telefono %}<div class="text-muted" style="font-size:.8rem;">{{ ev.telefono }}</div>{% endif %}
+              </td>
+              <td>{{ ev.supervisor.nombre }}</td>
+              <td>{{ ev.challenge.nombre }}</td>
+              <td>
+                <strong>{{ ev.fecha.strftime('%d/%m/%Y') }}</strong><br>
+                <span class="text-muted" style="font-size:.85rem;">{{ ev.hora }}</span>
+              </td>
+              <td>
+                {% if ev.estado == 'PENDIENTE' %}<span class="badge badge-pendiente">Pendiente</span>
+                {% elif ev.estado == 'CONFIRMADO' %}<span class="badge badge-confirmado">Confirmado</span>
+                {% elif ev.estado == 'RECHAZADO' %}<span class="badge badge-rechazado">Rechazado</span>
+                {% else %}<span class="badge badge-cancelado">Cancelado auto</span>{% endif %}
+              </td>
+              <td class="text-muted" style="font-size:.8rem;">{{ ev.created_at.strftime('%d/%m %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>No hay evaluaciones con ese filtro.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Historial{% endblock %}
+{% block content %}
+<div class="main-container">
+  <div class="page-header flex justify-between items-center flex-wrap gap-2">
+    <div>
+      <h1 class="page-title">Historial de evaluaciones</h1>
+      <p class="page-subtitle">Todas tus evaluaciones (últimas 100)</p>
+    </div>
+    <a href="{{ url_for('supervisor.dashboard') }}" class="btn btn-secondary">
+      <i class="fa fa-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  {% if evaluaciones %}
+    <div class="card">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Fecha</th><th>Hora</th><th>Solicitante</th><th>Challenge</th><th>Estado</th><th>Creada</th></tr>
+          </thead>
+          <tbody>
+            {% for ev in evaluaciones %}
+            <tr>
+              <td><strong>{{ ev.fecha.strftime('%d/%m/%Y') }}</strong></td>
+              <td>{{ ev.hora }}</td>
+              <td>
+                <div>{{ ev.nombre_solicitante }}</div>
+                <div class="text-muted" style="font-size:.8rem;">{{ ev.email_solicitante }}</div>
+              </td>
+              <td>{{ ev.challenge.nombre }}</td>
+              <td>
+                {% if ev.estado == 'PENDIENTE' %}<span class="badge badge-pendiente">Pendiente</span>
+                {% elif ev.estado == 'CONFIRMADO' %}<span class="badge badge-confirmado">Confirmado</span>
+                {% elif ev.estado == 'RECHAZADO' %}<span class="badge badge-rechazado">Rechazado</span>
+                {% else %}<span class="badge badge-cancelado">Cancelado auto</span>{% endif %}
+              </td>
+              <td class="text-muted" style="font-size:.8rem;">{{ ev.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state card">
+      <div class="empty-icon">📋</div>
+      <p>No tienes evaluaciones registradas aún.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

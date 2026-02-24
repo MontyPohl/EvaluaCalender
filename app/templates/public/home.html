@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<div style="text-align:center; padding:4rem 2rem 2rem; position:relative;">
+  <div style="display:inline-block; background:rgba(233,69,96,.1); border:1px solid rgba(233,69,96,.2); border-radius:20px; padding:4px 16px; font-size:.8rem; color:var(--accent); letter-spacing:1px; text-transform:uppercase; margin-bottom:1rem;">
+    Plataforma profesional de evaluaciones
+  </div>
+  <h1 style="font-family:'Syne',sans-serif; font-weight:800; font-size:3rem; line-height:1.1; margin-bottom:1rem;">
+    Agenda tu<br><span style="color:var(--accent)">evaluación por challenge</span>
+  </h1>
+  <p style="color:var(--text2); font-size:1.1rem; max-width:520px; margin:0 auto 2rem;">
+    Elige un supervisor, selecciona un horario disponible y agenda tu evaluación. Sin cuenta, sin complicaciones.
+  </p>
+  <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+    <a href="#supervisores" class="btn btn-primary btn-lg">
+      <i class="fa fa-calendar-check"></i> Ver supervisores disponibles
+    </a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-lg">
+      <i class="fa fa-user-plus"></i> Soy supervisor
+    </a>
+  </div>
+</div>
+
+<!-- Features strip -->
+<div style="max-width:900px; margin:2rem auto; padding:0 2rem;">
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; text-align:center;">
+    <div class="card">
+      <div style="font-size:2rem; margin-bottom:.75rem;">⚡</div>
+      <div style="font-weight:600; margin-bottom:.25rem;">Sin cuenta requerida</div>
+      <div class="text-muted" style="font-size:.85rem;">Los usuarios externos agendan directamente</div>
+    </div>
+    <div class="card">
+      <div style="font-size:2rem; margin-bottom:.75rem;">🔔</div>
+      <div style="font-weight:600; margin-bottom:.25rem;">Notificaciones automáticas</div>
+      <div class="text-muted" style="font-size:.85rem;">Confirmación y recordatorio 1h antes</div>
+    </div>
+    <div class="card">
+      <div style="font-size:2rem; margin-bottom:.75rem;">🛡</div>
+      <div style="font-weight:600; margin-bottom:.25rem;">Anti-solapamiento</div>
+      <div class="text-muted" style="font-size:.85rem;">Cada horario bloqueado instantáneamente</div>
+    </div>
+  </div>
+</div>
+
+<!-- Supervisores -->
+<div id="supervisores" class="main-container">
+  <div class="page-header" style="text-align:center;">
+    <h2 class="page-title">Supervisores disponibles</h2>
+    <p class="page-subtitle">{{ supervisores|length }} supervisor{{ 'es' if supervisores|length != 1 else '' }} activo{{ 's' if supervisores|length != 1 else '' }}</p>
+  </div>
+
+  {% if supervisores %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1.25rem;">
+      {% for sup in supervisores %}
+        <a href="{{ url_for('public.perfil_supervisor', supervisor_id=sup.id) }}"
+           style="text-decoration:none; display:block;">
+          <div class="card" style="cursor:pointer; transition:transform .2s, border-color .2s;"
+               onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='var(--accent)';"
+               onmouseout="this.style.transform=''; this.style.borderColor='';">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
+              <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, var(--accent), var(--blue)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#fff; flex-shrink:0;">
+                {{ sup.nombre[0].upper() }}
+              </div>
+              <div>
+                <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:1rem;">{{ sup.nombre }}</div>
+                <div class="text-muted" style="font-size:.8rem;">{{ sup.email }}</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span class="role-pill role-supervisor">Supervisor</span>
+              <span style="color:var(--accent); font-size:.85rem; font-weight:600;">
+                Ver agenda <i class="fa fa-arrow-right"></i>
+              </span>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state card">
+      <div class="empty-icon">👤</div>
+      <h3>No hay supervisores registrados aún</h3>
+      <p class="text-muted mt-1">Sé el primero en registrarte como supervisor.</p>
+      <a href="{{ url_for('auth.register') }}" class="btn btn-primary mt-2">Registrarme como supervisor</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

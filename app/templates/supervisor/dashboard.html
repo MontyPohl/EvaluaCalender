@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="main-container">
+  <div class="page-header flex justify-between items-center flex-wrap gap-2">
+    <div>
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-subtitle">Bienvenido/a, <strong style="color:var(--text)">{{ current_user.nombre }}</strong></p>
+    </div>
+    <a href="{{ url_for('supervisor.disponibilidad') }}" class="btn btn-primary">
+      <i class="fa fa-clock"></i> Gestionar disponibilidad
+    </a>
+  </div>
+
+  <!-- Stats rápidas -->
+  <div class="stats-grid mb-3">
+    <div class="stat-card">
+      <div class="stat-icon">⏳</div>
+      <div class="stat-number" style="color:var(--warning)">{{ pendientes|length }}</div>
+      <div class="stat-label">Solicitudes pendientes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-number" style="color:var(--success)">{{ proximas|length }}</div>
+      <div class="stat-label">Próximas confirmadas</div>
+    </div>
+  </div>
+
+  <!-- Solicitudes pendientes -->
+  <div class="card mb-3">
+    <div class="card-header">
+      <i class="fa fa-bell icon"></i> Solicitudes pendientes
+      {% if pendientes %}<span class="badge badge-pendiente">{{ pendientes|length }}</span>{% endif %}
+    </div>
+
+    {% if pendientes %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Solicitante</th>
+              <th>Challenge</th>
+              <th>Fecha y hora</th>
+              <th>Expira en</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in pendientes %}
+            <tr>
+              <td>
+                <div style="font-weight:600;">{{ ev.nombre_solicitante }}</div>
+                <div class="text-muted" style="font-size:.8rem;">{{ ev.email_solicitante }}</div>
+                {% if ev.telefono %}<div class="text-muted" style="font-size:.8rem;"><i class="fa fa-phone"></i> {{ ev.telefono }}</div>{% endif %}
+              </td>
+              <td><span style="font-weight:500;">{{ ev.challenge.nombre }}</span></td>
+              <td>
+                <div style="font-weight:600;">{{ ev.fecha.strftime('%d/%m/%Y') }}</div>
+                <div class="text-muted" style="font-size:.85rem;"><i class="fa fa-clock"></i> {{ ev.hora }}</div>
+              </td>
+              <td>
+                <span class="badge badge-pendiente" data-expires="{{ ev.expires_at.isoformat() }}" data-id="{{ ev.id }}">
+                  calculando…
+                </span>
+              </td>
+              <td>
+                <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                  <form method="POST" action="{{ url_for('supervisor.confirmar_evaluacion', eval_id=ev.id) }}" style="margin:0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-success btn-sm">
+                      <i class="fa fa-check"></i> Confirmar
+                    </button>
+                  </form>
+                  <form method="POST" action="{{ url_for('supervisor.rechazar_evaluacion', eval_id=ev.id) }}" style="margin:0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                      <i class="fa fa-xmark"></i> Rechazar
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🎉</div>
+        <p>No hay solicitudes pendientes</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Próximas confirmadas -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fa fa-calendar-check icon"></i> Próximas evaluaciones confirmadas
+    </div>
+    {% if proximas %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Fecha</th><th>Hora</th><th>Solicitante</th><th>Challenge</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {% for ev in proximas %}
+            <tr>
+              <td><strong>{{ ev.fecha.strftime('%d/%m/%Y') }}</strong></td>
+              <td>{{ ev.hora }}</td>
+              <td>
+                <div>{{ ev.nombre_solicitante }}</div>
+                <div class="text-muted" style="font-size:.8rem;">{{ ev.email_solicitante }}</div>
+              </td>
+              <td>{{ ev.challenge.nombre }}</td>
+              <td><span class="badge badge-confirmado">Confirmado</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <p>No hay evaluaciones confirmadas próximas</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Countdown para expiración de solicitudes pendientes
+function updateCountdowns() {
+  document.querySelectorAll('[data-expires]').forEach(el => {
+    const exp = new Date(el.dataset.expires);
+    const now = new Date();
+    const diff = exp - now;
+    if (diff <= 0) {
+      el.textContent = 'Expirado';
+      el.style.background = 'rgba(239,68,68,.15)';
+      el.style.color = 'var(--danger)';
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    el.textContent = `${h}h ${m}m`;
+  });
+}
+updateCountdowns();
+setInterval(updateCountdowns, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Gestionar Disponibilidad{% endblock %}
+
+{% block extra_css %}
+<style>
+.cal-g { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.ch { text-align:center; font-size:.65rem; font-weight:700; color:var(--text2); padding:6px; text-transform:uppercase; letter-spacing:1px; }
+.cd {
+  aspect-ratio:1; border-radius:8px; background:var(--card);
+  border:1px solid var(--border); font-size:.8rem;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; user-select:none; transition:all .15s; position:relative;
+}
+.cd.empty { background:transparent; border:none; cursor:default; }
+.cd.past { opacity:.3; pointer-events:none; }
+.cd.sel { background:rgba(233,69,96,.15); border-color:var(--accent); }
+.cd.existing { background:rgba(79,142,247,.12); border-color:rgba(79,142,247,.35); }
+.cd.existing.sel { background:rgba(233,69,96,.15); border-color:var(--accent); }
+.cd:not(.empty):not(.past):hover { transform:scale(1.04); }
+.cd .dn { font-weight:700; line-height:1; }
+.cd .ds { font-size:.6rem; color:var(--text2); margin-top:2px; }
+.cd.existing .ds { color:var(--blue); }
+.cd.sel .ds { color:var(--accent); }
+
+.hour-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:.4rem; margin-top:.75rem; }
+.hour-chip {
+  background:var(--card2); border:1px solid var(--border); border-radius:6px;
+  padding:6px 10px; font-size:.8rem; text-align:center; cursor:pointer;
+  user-select:none; transition:all .15s; font-family:inherit; color:var(--text);
+}
+.hour-chip:hover { border-color:var(--accent); color:var(--accent); }
+.hour-chip.hour-sel { background:var(--accent); border-color:var(--accent); color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+  <div class="page-header flex justify-between items-center flex-wrap gap-2">
+    <div>
+      <h1 class="page-title">Mi Disponibilidad</h1>
+      <p class="page-subtitle">Define los horarios en los que puedes realizar evaluaciones</p>
+    </div>
+    <a href="{{ url_for('supervisor.dashboard') }}" class="btn btn-secondary">
+      <i class="fa fa-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 340px; gap:2rem; align-items:start;">
+
+    <!-- Calendario -->
+    <div class="card">
+      <div class="card-header flex justify-between items-center">
+        <span><i class="fa fa-calendar icon"></i> Selecciona días</span>
+        <div style="display:flex; gap:.5rem;">
+          <a href="{{ url_for('supervisor.disponibilidad', year=year if month>1 else year-1, month=month-1 if month>1 else 12) }}"
+             class="btn btn-secondary btn-sm"><i class="fa fa-chevron-left"></i></a>
+          <span style="font-family:'Syne',sans-serif; font-weight:700;">
+            {{ ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][month-1] }} {{ year }}
+          </span>
+          <a href="{{ url_for('supervisor.disponibilidad', year=year if month<12 else year+1, month=month+1 if month<12 else 1) }}"
+             class="btn btn-secondary btn-sm"><i class="fa fa-chevron-right"></i></a>
+        </div>
+      </div>
+
+      <div class="cal-g" id="calG">
+        {% for d in ["Lu","Ma","Mi","Ju","Vi","Sa","Do"] %}<div class="ch">{{d}}</div>{% endfor %}
+      </div>
+
+      <div class="mt-2" style="font-size:.8rem; display:flex; gap:1rem; flex-wrap:wrap;">
+        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.4);border-radius:3px;margin-right:4px;"></span>Ya definido</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(233,69,96,.2);border:1px solid rgba(233,69,96,.4);border-radius:3px;margin-right:4px;"></span>Seleccionado para agregar</span>
+      </div>
+    </div>
+
+    <!-- Panel de horas -->
+    <div style="position:sticky; top:80px;">
+      <div class="card mb-2" id="horasPanel">
+        <div class="card-header"><i class="fa fa-clock icon"></i> Horarios</div>
+        <p class="text-muted" style="font-size:.875rem;" id="horasPanelMsg">Selecciona uno o más días en el calendario.</p>
+        <div id="horasContent" style="display:none;">
+          <p style="font-size:.8rem; color:var(--text2); margin-bottom:.5rem;">Días seleccionados: <strong id="diasCount">0</strong></p>
+          <p style="font-size:.8rem; font-weight:600; margin-bottom:.25rem;">Elige las horas disponibles:</p>
+          <div class="hour-grid" id="hourGrid"></div>
+          <div style="margin-top:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+            <button onclick="selectAllHours()" class="btn btn-secondary btn-sm">Todo</button>
+            <button onclick="clearHours()" class="btn btn-secondary btn-sm">Ninguno</button>
+            <button onclick="selectBusinessHours()" class="btn btn-secondary btn-sm">9–18h</button>
+          </div>
+          <button onclick="guardarSlots()" class="btn btn-primary w-full mt-2" style="justify-content:center;">
+            <i class="fa fa-save"></i> Guardar disponibilidad
+          </button>
+        </div>
+      </div>
+
+      <!-- Slots existentes del mes -->
+      {% if slots %}
+        <div class="card">
+          <div class="card-header"><i class="fa fa-list icon"></i> Slots del mes</div>
+          <div style="max-height:300px; overflow-y:auto;">
+            {% for s in slots %}
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                <div>
+                  <span style="font-size:.85rem; font-weight:600;">{{ s.fecha.strftime('%d/%m') }}</span>
+                  <span style="font-size:.8rem; color:var(--text2); margin-left:8px;">{{ s.hora }}</span>
+                  {% if not s.disponible %}
+                    <span class="badge badge-pendiente" style="font-size:.65rem; margin-left:4px;">Ocupado</span>
+                  {% endif %}
+                </div>
+                {% if s.disponible %}
+                  <form method="POST" action="{{ url_for('supervisor.eliminar_disponibilidad', slot_id=s.id) }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm" style="padding:3px 8px;" title="Eliminar">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const YEAR = {{ year }};
+const MONTH = {{ month }};
+const EXISTING_SLOTS = {{ slots | map(attribute='fecha') | map('string') | list | tojson }};
+
+let selectedDays = new Set();
+let selectedHours = new Set();
+
+const HOURS = Array.from({length:14}, (_, i) => `${String(i+7).padStart(2,'0')}:00`);
+
+// Build calendar
+function buildCal() {
+  const g = document.getElementById('calG');
+  g.querySelectorAll('.cd').forEach(e => e.remove());
+  const first = new Date(YEAR, MONTH-1, 1);
+  const last = new Date(YEAR, MONTH, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+  let startDow = (first.getDay() + 6) % 7;
+  for (let i = 0; i < startDow; i++) {
+    const b = document.createElement('div'); b.className='cd empty'; g.appendChild(b);
+  }
+  for (let d = 1; d <= last; d++) {
+    const ds = `${YEAR}-${String(MONTH).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dt = new Date(YEAR, MONTH-1, d);
+    const hasExisting = EXISTING_SLOTS.includes(ds);
+    const el = document.createElement('div');
+    el.className = 'cd' + (dt < today ? ' past' : '') + (hasExisting ? ' existing' : '');
+    el.dataset.date = ds;
+    el.innerHTML = `<span class="dn">${d}</span><span class="ds">${hasExisting ? '✓ def.' : ''}</span>`;
+    el.onclick = () => toggleDay(ds, el);
+    g.appendChild(el);
+  }
+}
+
+function toggleDay(ds, el) {
+  if (selectedDays.has(ds)) {
+    selectedDays.delete(ds);
+    el.classList.remove('sel');
+  } else {
+    selectedDays.add(ds);
+    el.classList.add('sel');
+  }
+  updateHorasPanel();
+}
+
+function updateHorasPanel() {
+  document.getElementById('horasPanelMsg').style.display = selectedDays.size === 0 ? 'block' : 'none';
+  document.getElementById('horasContent').style.display = selectedDays.size > 0 ? 'block' : 'none';
+  document.getElementById('diasCount').textContent = selectedDays.size;
+  buildHourGrid();
+}
+
+function buildHourGrid() {
+  const g = document.getElementById('hourGrid');
+  if (g.children.length > 0) return; // already built
+  HOURS.forEach(h => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'hour-chip';
+    chip.textContent = h;
+    chip.onclick = () => toggleHour(h, chip);
+    g.appendChild(chip);
+  });
+}
+
+function toggleHour(h, el) {
+  if (selectedHours.has(h)) { selectedHours.delete(h); el.classList.remove('hour-sel'); }
+  else { selectedHours.add(h); el.classList.add('hour-sel'); }
+}
+
+function selectAllHours() {
+  HOURS.forEach(h => { selectedHours.add(h); });
+  document.querySelectorAll('.hour-chip').forEach(c => c.classList.add('hour-sel'));
+}
+
+function clearHours() {
+  selectedHours.clear();
+  document.querySelectorAll('.hour-chip').forEach(c => c.classList.remove('hour-sel'));
+}
+
+function selectBusinessHours() {
+  clearHours();
+  HOURS.filter(h => parseInt(h) >= 9 && parseInt(h) < 18).forEach(h => {
+    selectedHours.add(h);
+    document.querySelectorAll('.hour-chip').forEach(c => { if (c.textContent === h) c.classList.add('hour-sel'); });
+  });
+}
+
+async function guardarSlots() {
+  if (selectedDays.size === 0 || selectedHours.size === 0) {
+    alert('Selecciona al menos un día y una hora.');
+    return;
+  }
+  const slots = [];
+  selectedDays.forEach(fecha => {
+    selectedHours.forEach(hora => slots.push({fecha, hora}));
+  });
+  const csrfToken = document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}';
+  const res = await fetch('{{ url_for("supervisor.guardar_disponibilidad") }}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'X-CSRFToken': csrfToken},
+    body: JSON.stringify({slots})
+  });
+  const data = await res.json();
+  if (data.ok) {
+    window.location.reload();
+  } else {
+    alert('Error: ' + (data.error || 'desconocido'));
+  }
+}
+
+buildCal();
+</script>
+{% endblock %}
