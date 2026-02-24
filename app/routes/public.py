@@ -3,8 +3,18 @@ app/routes/public.py
 Rutas públicas: home, perfil supervisor, agendamiento.
 No requieren autenticación.
 """
+
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    jsonify,
+    abort,
+)
 from ..models import User, Challenge, Evaluacion
 from ..services import (
     get_disponibilidad_mes,
@@ -20,13 +30,17 @@ public_bp = Blueprint("public", __name__)
 
 @public_bp.route("/")
 def home():
-    supervisores = User.query.filter_by(rol="SUPERVISOR", activo=True).order_by(User.nombre).all()
+    supervisores = (
+        User.query.filter_by(rol="SUPERVISOR", activo=True).order_by(User.nombre).all()
+    )
     return render_template("public/home.html", supervisores=supervisores)
 
 
 @public_bp.route("/supervisor/<int:supervisor_id>")
 def perfil_supervisor(supervisor_id):
-    supervisor = User.query.filter_by(id=supervisor_id, rol="SUPERVISOR", activo=True).first_or_404()
+    supervisor = User.query.filter_by(
+        id=supervisor_id, rol="SUPERVISOR", activo=True
+    ).first_or_404()
 
     # Mes actual o el solicitado
     try:
@@ -57,6 +71,7 @@ def perfil_supervisor(supervisor_id):
 
 
 @public_bp.route("/agendar", methods=["POST"])
+@public_bp.route("/agendar", methods=["POST"])
 def agendar():
     """Procesa el formulario de agendamiento."""
     supervisor_id = request.form.get("supervisor_id", type=int)
@@ -84,7 +99,9 @@ def agendar():
 
     if errors:
         flash(" | ".join(errors), "danger")
-        return redirect(url_for("public.perfil_supervisor", supervisor_id=supervisor_id))
+        return redirect(
+            url_for("public.perfil_supervisor", supervisor_id=supervisor_id)
+        )
 
     # Parsear fecha
     try:
@@ -94,15 +111,22 @@ def agendar():
         return redirect(url_for("public.home"))
 
     # Verificar supervisor y challenge
-    supervisor = User.query.filter_by(id=supervisor_id, rol="SUPERVISOR", activo=True).first()
+    supervisor = User.query.filter_by(
+        id=supervisor_id, rol="SUPERVISOR", activo=True
+    ).first()
     challenge = Challenge.query.filter_by(id=challenge_id, activo=True).first()
     if not supervisor or not challenge:
         abort(400)
 
-    # Verificar disponibilidad en backend (CRÍTICO - no confiar en frontend)
+    # Verificar disponibilidad en backend
     if not slot_disponible(supervisor_id, fecha, hora):
-        flash("El horario seleccionado ya no está disponible. Por favor elige otro.", "warning")
-        return redirect(url_for("public.perfil_supervisor", supervisor_id=supervisor_id))
+        flash(
+            "El horario seleccionado ya no está disponible. Por favor elige otro.",
+            "warning",
+        )
+        return redirect(
+            url_for("public.perfil_supervisor", supervisor_id=supervisor_id)
+        )
 
     # Crear evaluación
     evaluacion = Evaluacion.create(
@@ -118,12 +142,26 @@ def agendar():
     bloquear_slot(supervisor_id, fecha, hora)
     db.session.commit()
 
-    # Enviar correos
-    try:
-        enviar_solicitud_recibida(evaluacion)
-        enviar_nueva_solicitud_supervisor(evaluacion)
-    except Exception:
-        pass  # No interrumpir el flujo
+    # ── Enviar correos en segundo plano (no bloquea la respuesta) ──
+    from flask import current_app
+    import threading
+
+    _app = current_app._get_current_object()
+    _eval_id = evaluacion.id
+
+    def enviar_correos():
+        with _app.app_context():
+            from ..models import Evaluacion as Ev
+
+            ev = Ev.query.get(_eval_id)
+            if ev:
+                try:
+                    enviar_solicitud_recibida(ev)
+                    enviar_nueva_solicitud_supervisor(ev)
+                except Exception as e:
+                    _app.logger.error(f"Error enviando correos: {e}")
+
+    threading.Thread(target=enviar_correos, daemon=True).start()
 
     flash(
         f"¡Solicitud enviada! Recibirás una confirmación en {email}. "
