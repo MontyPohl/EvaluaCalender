@@ -5,8 +5,8 @@ class Config:
     SECRET_KEY = "EvaluaCalender2025xK9mP2qL8nR5vT"
     WTF_CSRF_ENABLED = True
 
-    SQLALCHEMY_DATABASE_URI = (
-        "postgresql://postgres:admin1234@localhost:5433/evaluacalender"
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URL", "postgresql://postgres:admin1234@localhost:5433/evaluacalender"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
