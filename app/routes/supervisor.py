@@ -65,8 +65,6 @@ def dashboard():
 
 @supervisor_bp.route("/evaluacion/<int:eval_id>/confirmar", methods=["POST"])
 @login_required
-@supervisor_bp.route("/evaluacion/<int:eval_id>/confirmar", methods=["POST"])
-@login_required
 def confirmar_evaluacion(eval_id):
     _require_supervisor()
     ev = Evaluacion.query.filter_by(
