@@ -3,7 +3,7 @@ app/routes/supervisor.py
 Rutas del panel de supervisor.
 """
 
-import json
+import threading
 from datetime import date
 from flask import (
     Blueprint,
@@ -14,6 +14,7 @@ from flask import (
     flash,
     jsonify,
     abort,
+    current_app,
 )
 from flask_login import login_required, current_user
 from ..models import Evaluacion, Disponibilidad
@@ -33,6 +34,23 @@ supervisor_bp = Blueprint("supervisor", __name__, url_prefix="/supervisor")
 def _require_supervisor():
     if not current_user.is_authenticated or not current_user.is_supervisor():
         abort(403)
+
+
+def _enviar_en_background(app, eval_id, funcion_correo):
+    """Envía un correo en un hilo separado para no bloquear la respuesta."""
+
+    def tarea():
+        with app.app_context():
+            from ..models import Evaluacion as Ev
+
+            ev = Ev.query.get(eval_id)
+            if ev:
+                try:
+                    funcion_correo(ev)
+                except Exception as e:
+                    app.logger.error(f"Error enviando correo: {e}")
+
+    threading.Thread(target=tarea, daemon=True).start()
 
 
 @supervisor_bp.route("/dashboard")
@@ -78,25 +96,7 @@ def confirmar_evaluacion(eval_id):
     ev.confirmar()
     db.session.commit()
 
-    # Enviar correo en segundo plano
-    from flask import current_app
-    import threading
-
-    _app = current_app._get_current_object()
-    _eval_id = ev.id
-
-    def enviar():
-        with _app.app_context():
-            from ..models import Evaluacion as Ev
-
-            e = Ev.query.get(_eval_id)
-            if e:
-                try:
-                    enviar_confirmacion(e)
-                except Exception as ex:
-                    _app.logger.error(f"Error enviando correo confirmacion: {ex}")
-
-    threading.Thread(target=enviar, daemon=True).start()
+    _enviar_en_background(current_app._get_current_object(), ev.id, enviar_confirmacion)
 
     flash(f"Evaluación de {ev.nombre_solicitante} confirmada exitosamente.", "success")
     return redirect(url_for("supervisor.dashboard"))
@@ -118,25 +118,7 @@ def rechazar_evaluacion(eval_id):
     liberar_slot(current_user.id, ev.fecha, ev.hora)
     db.session.commit()
 
-    # Enviar correo en segundo plano
-    from flask import current_app
-    import threading
-
-    _app = current_app._get_current_object()
-    _eval_id = ev.id
-
-    def enviar():
-        with _app.app_context():
-            from ..models import Evaluacion as Ev
-
-            e = Ev.query.get(_eval_id)
-            if e:
-                try:
-                    enviar_rechazo(e)
-                except Exception as ex:
-                    _app.logger.error(f"Error enviando correo rechazo: {ex}")
-
-    threading.Thread(target=enviar, daemon=True).start()
+    _enviar_en_background(current_app._get_current_object(), ev.id, enviar_rechazo)
 
     flash(
         f"Evaluación de {ev.nombre_solicitante} rechazada. El horario fue liberado.",
@@ -174,7 +156,6 @@ def disponibilidad():
 @supervisor_bp.route("/disponibilidad/guardar", methods=["POST"])
 @login_required
 def guardar_disponibilidad():
-    """Guarda múltiples slots en bulk desde el formulario del calendario."""
     _require_supervisor()
     data = request.get_json()
     if not data or "slots" not in data:
